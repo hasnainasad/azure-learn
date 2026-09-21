@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 const { userRepository } = require('./src/repositories/userRepository.mongo');
+const { profileRepository } = require('./src/repositories/profileRepository.mongo');
 const { dbTestRoutes } = require('./src/routes/dbTest');
 
 const config = loadConfig(); // throws (and the service exits) if JWT_SECRET is missing
@@ -24,6 +25,7 @@ if (config.mongoUrl) {
 
 const app = createApp({
   userRepo: userRepository,
+  profileRepo: profileRepository,
   jwtSecret: config.jwtSecret,
   jwtExpiresIn: config.jwtExpiresIn,
   mountExtra: (a) => a.use('/api/db', dbTestRoutes(() => dbState)),

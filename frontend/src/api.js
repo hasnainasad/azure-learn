@@ -41,5 +41,8 @@ export const api = {
   register: (email, password, name) => request('/api/auth/register', { method: 'POST', body: { email, password, name } }),
   login: (email, password) => request('/api/auth/login', { method: 'POST', body: { email, password } }),
   me: () => request('/api/auth/me'),
+  riskQuestionnaire: () => request('/api/risk/questionnaire'),
+  getAssessment: () => request('/api/risk/assessment'),
+  saveAssessment: (answers, goal) => request('/api/risk/assessment', { method: 'POST', body: { answers, goal } }),
   info: () => request('/api/info'),
 }
