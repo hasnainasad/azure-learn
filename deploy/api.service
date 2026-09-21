@@ -9,6 +9,7 @@ WorkingDirectory=/home/azureuser/backend
 ExecStart=/usr/bin/node server.js
 Environment=PORT=3000
 Environment=NODE_ENV=production
+EnvironmentFile=/etc/api.env
 Restart=always
 RestartSec=3
 
