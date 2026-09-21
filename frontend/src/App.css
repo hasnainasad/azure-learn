@@ -1,4 +1,17 @@
 .wrap { max-width: 640px; margin: 3rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; }
 pre { background: #f4f4f5; color: #111; padding: 1rem; border-radius: 8px; overflow-x: auto; }
 .err { color: #b00020; }
-@media (prefers-color-scheme: dark) { pre { background: #1f1f23; color: #eee; } }
+
+.card { text-align: left; border: 1px solid #d4d4d8; border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.card label { display: block; margin: 0.75rem 0; font-size: 0.9rem; }
+.card input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; padding: 0.5rem; font-size: 1rem; border: 1px solid #a1a1aa; border-radius: 6px; }
+button { padding: 0.5rem 1rem; font-size: 1rem; border-radius: 6px; border: 1px solid #52525b; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: wait; }
+button.link { border: none; background: none; padding: 0; text-decoration: underline; cursor: pointer; }
+details { margin-top: 2rem; }
+
+@media (prefers-color-scheme: dark) {
+  pre { background: #1f1f23; color: #eee; }
+  .card { border-color: #3f3f46; }
+  .err { color: #ff6b81; }
+}
