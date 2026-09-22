@@ -7,6 +7,7 @@ import RiskResult from './RiskResult'
 import KycSection from './KycSection'
 import AdminKycPanel from './AdminKycPanel'
 import RecommendationSection from './RecommendationSection'
+import PricesSection from './PricesSection'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -92,6 +93,8 @@ export default function App() {
           <KycSection onChanged={() => setKycVersion((v) => v + 1)} />
 
           <RecommendationSection key={`${assessment?.createdAt}-${kycVersion}`} />
+
+          <PricesSection />
 
           {user.role === 'admin' && <AdminKycPanel />}
         </>

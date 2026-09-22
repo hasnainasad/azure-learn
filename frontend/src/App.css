@@ -43,6 +43,11 @@ details { margin-top: 2rem; }
 .fund-table th, .fund-table td { text-align: left; padding: 0.5rem 0.5rem; border-bottom: 1px solid #e5e4e7; vertical-align: top; }
 .fund-table th { font-weight: 600; }
 
+.price-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9rem; }
+.price-table th, .price-table td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e5e4e7; }
+.price-table th { font-weight: 600; }
+.stale-badge { display: inline-block; margin-left: 0.5rem; padding: 0.05rem 0.4rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; color: #b45309; background: #fef3c7; border-radius: 4px; }
+
 @media (prefers-color-scheme: dark) {
   pre { background: #1f1f23; color: #eee; }
   .card, .card fieldset { border-color: #3f3f46; }
@@ -61,4 +66,6 @@ details { margin-top: 2rem; }
   .alloc-bond { background: #38bdf8; }
   .alloc-cash { background: #4ade80; }
   .fund-table th, .fund-table td { border-color: #3f3f46; }
+  .price-table th, .price-table td { border-color: #3f3f46; }
+  .stale-badge { color: #fbbf24; background: #451a03; }
 }

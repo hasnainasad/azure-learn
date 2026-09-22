@@ -8,8 +8,10 @@ const { riskRoutes } = require('./routes/risk');
 const { kycRoutes } = require('./routes/kyc');
 const { fundsRoutes } = require('./routes/funds');
 const { recommendationRoutes } = require('./routes/recommendation');
+const { pricesRoutes } = require('./routes/prices');
+const { createPriceFeedService } = require('./services/priceFeedService');
 
-function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, mountExtra }) {
+function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, priceFeedService, mountExtra }) {
   const app = express();
   app.use(express.json({ limit: '100kb' }));
 
@@ -39,6 +41,10 @@ function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, mo
   if (kycRepo) app.use('/api/kyc', kycRoutes({ kycRepo, userRepo, jwtSecret }));
   app.use('/api/funds', fundsRoutes({ jwtSecret })); // reference data - no repo dependency
   if (profileRepo && kycRepo) app.use('/api/recommendation', recommendationRoutes({ profileRepo, kycRepo, jwtSecret }));
+  // Falls back to a real (well, mock-real) priceFeedService when the caller doesn't
+  // supply one, the same way express() etc. isn't injected - but tests can still pass a
+  // fake service to control retries/failures/latency deterministically.
+  app.use('/api/prices', pricesRoutes({ priceFeedService: priceFeedService || createPriceFeedService(), jwtSecret }));
 
   // Lets server.js attach database-specific routes (the Cosmos test endpoints)
   if (mountExtra) mountExtra(app);

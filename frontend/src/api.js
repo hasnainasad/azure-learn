@@ -51,5 +51,6 @@ export const api = {
   decideKyc: (userId, decision, reason) => request(`/api/kyc/admin/${userId}/decision`, { method: 'POST', body: { decision, reason } }),
   getFundCatalog: () => request('/api/funds/catalog'),
   getRecommendation: () => request('/api/recommendation'),
+  getPrices: () => request('/api/prices'),
   info: () => request('/api/info'),
 }
