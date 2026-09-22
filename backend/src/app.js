@@ -6,6 +6,8 @@ const os = require('os');
 const { authRoutes } = require('./routes/auth');
 const { riskRoutes } = require('./routes/risk');
 const { kycRoutes } = require('./routes/kyc');
+const { fundsRoutes } = require('./routes/funds');
+const { recommendationRoutes } = require('./routes/recommendation');
 
 function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, mountExtra }) {
   const app = express();
@@ -35,6 +37,8 @@ function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, mo
   app.use('/api/auth', authRoutes({ userRepo, jwtSecret, jwtExpiresIn }));
   if (profileRepo) app.use('/api/risk', riskRoutes({ profileRepo, jwtSecret }));
   if (kycRepo) app.use('/api/kyc', kycRoutes({ kycRepo, userRepo, jwtSecret }));
+  app.use('/api/funds', fundsRoutes({ jwtSecret })); // reference data - no repo dependency
+  if (profileRepo && kycRepo) app.use('/api/recommendation', recommendationRoutes({ profileRepo, kycRepo, jwtSecret }));
 
   // Lets server.js attach database-specific routes (the Cosmos test endpoints)
   if (mountExtra) mountExtra(app);

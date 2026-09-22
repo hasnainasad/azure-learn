@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import KycForm from './KycForm'
+import { KYC_STATUS_LABEL } from './labels'
 
-const STATUS_LABEL = {
-  not_submitted: 'Not submitted',
-  pending: 'Pending review',
-  approved: 'Verified',
-  rejected: 'Rejected',
-}
-
-export default function KycSection() {
+// onChanged: called with the new record right after a submission, so a parent that
+// shows something gated on KYC status (the fund recommendation) can refresh in the same
+// session instead of showing a status that was only true before this submission.
+export default function KycSection({ onChanged }) {
   // undefined = loading
   const [kyc, setKyc] = useState(undefined)
   const [error, setError] = useState(null)
@@ -21,6 +18,7 @@ export default function KycSection() {
   function handleSubmitted(record) {
     setKyc(record)
     setEditing(false)
+    onChanged?.(record)
   }
 
   if (error) return <section className="card"><p className="err">Could not load KYC status: {error}</p></section>
@@ -35,7 +33,7 @@ export default function KycSection() {
   return (
     <section className="card">
       <h2>Identity verification (KYC)</h2>
-      <p className={`kyc-status kyc-${kyc.status}`}>{STATUS_LABEL[kyc.status]}</p>
+      <p className={`kyc-status kyc-${kyc.status}`}>{KYC_STATUS_LABEL[kyc.status]}</p>
       {kyc.status === 'pending' && <p>Submitted {new Date(kyc.submittedAt).toLocaleDateString()}. An admin will review it shortly.</p>}
       {kyc.status === 'approved' && <p>Verified on {new Date(kyc.reviewedAt).toLocaleDateString()}. No further action needed.</p>}
     </section>

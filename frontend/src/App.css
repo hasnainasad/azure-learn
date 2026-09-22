@@ -31,6 +31,18 @@ details { margin-top: 2rem; }
 .kyc-row:first-of-type { border-top: none; padding-top: 0; }
 .kyc-row input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; padding: 0.4rem; font-size: 0.95rem; border: 1px solid #a1a1aa; border-radius: 6px; }
 
+.alloc-row { margin: 0.9rem 0; }
+.alloc-bar-label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.2rem; }
+.alloc-bar { height: 10px; border-radius: 5px; background: #e4e4e7; overflow: hidden; }
+.alloc-bar-fill { height: 100%; border-radius: 5px; }
+.alloc-equity { background: #b45309; }
+.alloc-bond { background: #0369a1; }
+.alloc-cash { background: #15803d; }
+
+.fund-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
+.fund-table th, .fund-table td { text-align: left; padding: 0.5rem 0.5rem; border-bottom: 1px solid #e5e4e7; vertical-align: top; }
+.fund-table th { font-weight: 600; }
+
 @media (prefers-color-scheme: dark) {
   pre { background: #1f1f23; color: #eee; }
   .card, .card fieldset { border-color: #3f3f46; }
@@ -44,4 +56,9 @@ details { margin-top: 2rem; }
   .kyc-rejected { color: #ff6b81; }
   .kyc-row { border-color: #3f3f46; }
   .kyc-row input { border-color: #52525b; }
+  .alloc-bar { background: #3f3f46; }
+  .alloc-equity { background: #fbbf24; }
+  .alloc-bond { background: #38bdf8; }
+  .alloc-cash { background: #4ade80; }
+  .fund-table th, .fund-table td { border-color: #3f3f46; }
 }

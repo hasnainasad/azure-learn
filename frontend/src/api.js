@@ -32,6 +32,7 @@ async function request(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const err = new Error(data.error || `HTTP ${res.status}`)
     err.status = res.status
+    err.data = data // some routes (e.g. /api/recommendation) send extra fields like `reason`
     throw err
   }
   return data
@@ -48,5 +49,7 @@ export const api = {
   submitKyc: (data) => request('/api/kyc/submit', { method: 'POST', body: data }),
   getPendingKyc: () => request('/api/kyc/admin/pending'),
   decideKyc: (userId, decision, reason) => request(`/api/kyc/admin/${userId}/decision`, { method: 'POST', body: { decision, reason } }),
+  getFundCatalog: () => request('/api/funds/catalog'),
+  getRecommendation: () => request('/api/recommendation'),
   info: () => request('/api/info'),
 }

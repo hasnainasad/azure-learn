@@ -5,3 +5,10 @@ export const GOAL_LABELS = {
   wealth: 'Building wealth',
   other: 'Something else',
 }
+
+export const KYC_STATUS_LABEL = {
+  not_submitted: 'Not submitted',
+  pending: 'Pending review',
+  approved: 'Verified',
+  rejected: 'Rejected',
+}
