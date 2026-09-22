@@ -44,5 +44,9 @@ export const api = {
   riskQuestionnaire: () => request('/api/risk/questionnaire'),
   getAssessment: () => request('/api/risk/assessment'),
   saveAssessment: (answers, goal) => request('/api/risk/assessment', { method: 'POST', body: { answers, goal } }),
+  getKycStatus: () => request('/api/kyc/status'),
+  submitKyc: (data) => request('/api/kyc/submit', { method: 'POST', body: data }),
+  getPendingKyc: () => request('/api/kyc/admin/pending'),
+  decideKyc: (userId, decision, reason) => request(`/api/kyc/admin/${userId}/decision`, { method: 'POST', body: { decision, reason } }),
   info: () => request('/api/info'),
 }

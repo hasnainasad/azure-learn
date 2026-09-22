@@ -13,7 +13,7 @@ const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_COST);
 
 // Never send the password hash to the browser
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, createdAt: u.createdAt };
+  return { id: u.id, email: u.email, name: u.name, role: u.role || 'user', createdAt: u.createdAt };
 }
 
 function authRoutes({ userRepo, jwtSecret, jwtExpiresIn = '1h' }) {

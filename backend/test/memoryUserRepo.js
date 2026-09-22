@@ -8,7 +8,7 @@ function createMemoryUserRepo() {
   return {
     async create({ email, name, passwordHash }) {
       if ([...users.values()].some((u) => u.email === email)) throw new DuplicateEmailError();
-      const user = { id: String(nextId++), email, name, passwordHash, createdAt: new Date() };
+      const user = { id: String(nextId++), email, name, passwordHash, role: 'user', createdAt: new Date() };
       users.set(user.id, user);
       return { ...user };
     },
@@ -21,6 +21,9 @@ function createMemoryUserRepo() {
       return u ? { ...u } : null;
     },
     _count: () => users.size,
+    // Test-only helper. Real promotion to admin happens out-of-band via scripts/make-admin.js,
+    // never through the app itself.
+    _setRole: (id, role) => { users.get(id).role = role; },
   };
 }
 

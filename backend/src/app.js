@@ -5,8 +5,9 @@ const express = require('express');
 const os = require('os');
 const { authRoutes } = require('./routes/auth');
 const { riskRoutes } = require('./routes/risk');
+const { kycRoutes } = require('./routes/kyc');
 
-function createApp({ userRepo, profileRepo, jwtSecret, jwtExpiresIn, mountExtra }) {
+function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, mountExtra }) {
   const app = express();
   app.use(express.json({ limit: '100kb' }));
 
@@ -33,6 +34,7 @@ function createApp({ userRepo, profileRepo, jwtSecret, jwtExpiresIn, mountExtra 
 
   app.use('/api/auth', authRoutes({ userRepo, jwtSecret, jwtExpiresIn }));
   if (profileRepo) app.use('/api/risk', riskRoutes({ profileRepo, jwtSecret }));
+  if (kycRepo) app.use('/api/kyc', kycRoutes({ kycRepo, userRepo, jwtSecret }));
 
   // Lets server.js attach database-specific routes (the Cosmos test endpoints)
   if (mountExtra) mountExtra(app);

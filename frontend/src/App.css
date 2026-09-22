@@ -23,6 +23,14 @@ details { margin-top: 2rem; }
 .meter span { flex: 1; height: 8px; border-radius: 4px; background: #e4e4e7; }
 .meter span.on { background: currentColor; }
 
+.kyc-status { font-size: 1.3rem; font-weight: 700; margin: 0.25rem 0 0.75rem; }
+.kyc-pending { color: #b45309; }
+.kyc-approved { color: #15803d; }
+.kyc-rejected { color: #b00020; }
+.kyc-row { border-top: 1px solid #d4d4d8; padding: 0.75rem 0; }
+.kyc-row:first-of-type { border-top: none; padding-top: 0; }
+.kyc-row input { display: block; width: 100%; box-sizing: border-box; margin-top: 0.25rem; padding: 0.4rem; font-size: 0.95rem; border: 1px solid #a1a1aa; border-radius: 6px; }
+
 @media (prefers-color-scheme: dark) {
   pre { background: #1f1f23; color: #eee; }
   .card, .card fieldset { border-color: #3f3f46; }
@@ -31,4 +39,9 @@ details { margin-top: 2rem; }
   .band-balanced { color: #c084fc; }
   .band-growth { color: #fbbf24; }
   .meter span { background: #3f3f46; }
+  .kyc-pending { color: #fbbf24; }
+  .kyc-approved { color: #4ade80; }
+  .kyc-rejected { color: #ff6b81; }
+  .kyc-row { border-color: #3f3f46; }
+  .kyc-row input { border-color: #52525b; }
 }

@@ -8,6 +8,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   name: { type: String, required: true, trim: true },
   passwordHash: { type: String, required: true },
+  // Not set by the registration form. Promoted with scripts/make-admin.js, the same
+  // way a real ops team would grant access out-of-band rather than through a signup form.
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -21,6 +24,7 @@ function toUser(doc) {
     email: doc.email,
     name: doc.name,
     passwordHash: doc.passwordHash,
+    role: doc.role || 'user',
     createdAt: doc.createdAt,
   };
 }
