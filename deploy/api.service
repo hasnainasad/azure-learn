@@ -9,6 +9,10 @@ WorkingDirectory=/home/azureuser/backend
 ExecStart=/usr/bin/node server.js
 Environment=PORT=3000
 Environment=NODE_ENV=production
+# Non-secret settings + (as of slice 6) KEY_VAULT_URI live here. MONGO_URL and
+# JWT_SECRET used to live here too; after the Key Vault migration they no longer do -
+# server.js fetches them from Key Vault instead. Read as data by systemd, never by a
+# shell `source`, which would mangle a Cosmos DB connection string's "&" characters.
 EnvironmentFile=/etc/api.env
 Restart=always
 RestartSec=3
