@@ -3,7 +3,15 @@ const assert = require('node:assert/strict');
 const { createApp } = require('../src/app');
 const { createMemoryUserRepo } = require('./memoryUserRepo');
 const { createMemoryKycRepo } = require('./memoryKycRepo');
-const { validateKycSubmission, validateDecision, ValidationError, ageFromDob } = require('../src/domain/kyc');
+const { createMemoryBlobStore } = require('./memoryBlobStore');
+const {
+  validateKycSubmission,
+  validateDocumentFile,
+  validateDecision,
+  ValidationError,
+  ageFromDob,
+  MAX_DOCUMENT_BYTES,
+} = require('../src/domain/kyc');
 
 const goodSubmission = {
   legalName: 'Asad Hasnain',
@@ -12,6 +20,8 @@ const goodSubmission = {
   documentType: 'passport',
   documentFileName: 'passport-scan.pdf',
 };
+
+const goodFile = { mimetype: 'application/pdf', size: 12345, originalname: 'passport-scan.pdf', buffer: Buffer.from('%PDF-fake') };
 
 describe('KYC validation (pure functions)', () => {
   test('accepts a well-formed submission', () => {
@@ -69,14 +79,41 @@ describe('KYC validation (pure functions)', () => {
   });
 });
 
+describe('validateDocumentFile (pure function)', () => {
+  test('accepts a well-formed PDF', () => {
+    const meta = validateDocumentFile(goodFile);
+    assert.equal(meta.contentType, 'application/pdf');
+    assert.equal(meta.originalName, 'passport-scan.pdf');
+  });
+
+  test('accepts JPEG and PNG too', () => {
+    assert.doesNotThrow(() => validateDocumentFile({ ...goodFile, mimetype: 'image/jpeg' }));
+    assert.doesNotThrow(() => validateDocumentFile({ ...goodFile, mimetype: 'image/png' }));
+  });
+
+  test('rejects a missing file', () => {
+    assert.throws(() => validateDocumentFile(null), ValidationError);
+    assert.throws(() => validateDocumentFile({ ...goodFile, buffer: Buffer.alloc(0) }), ValidationError);
+  });
+
+  test('rejects a disallowed file type', () => {
+    assert.throws(() => validateDocumentFile({ ...goodFile, mimetype: 'application/zip' }), ValidationError);
+  });
+
+  test('rejects a file over the size limit', () => {
+    assert.throws(() => validateDocumentFile({ ...goodFile, size: MAX_DOCUMENT_BYTES + 1 }), ValidationError);
+  });
+});
+
 describe('KYC API', () => {
   const SECRET = 'test-secret-that-is-at-least-32-characters-long';
-  let server, base, userRepo, kycRepo, userToken, userId, adminToken;
+  let server, base, userRepo, kycRepo, blobStore, userToken, userId, adminToken;
 
   before(async () => {
     userRepo = createMemoryUserRepo();
     kycRepo = createMemoryKycRepo();
-    const app = createApp({ userRepo, profileRepo: null, kycRepo, jwtSecret: SECRET });
+    blobStore = createMemoryBlobStore();
+    const app = createApp({ userRepo, profileRepo: null, kycRepo, jwtSecret: SECRET, blobStore });
     await new Promise((resolve) => { server = app.listen(0, resolve); });
     base = `http://127.0.0.1:${server.address().port}`;
 
@@ -109,26 +146,70 @@ describe('KYC API', () => {
       body: body ? JSON.stringify(body) : undefined,
     });
 
+  // Builds the multipart form the real KycForm sends: flat text fields + one file under
+  // "document". `fields` overrides individual text fields (e.g. to send a bad documentType);
+  // `file: null` omits the file entirely, to test "no document attached".
+  const submitKyc = (tok, { fields = {}, file } = {}) => {
+    const form = new FormData();
+    const merged = {
+      legalName: 'Asad Hasnain',
+      dob: '1990-06-15',
+      line1: '1 High Street',
+      city: 'London',
+      postalCode: 'SW1A 1AA',
+      country: 'United Kingdom',
+      documentType: 'passport',
+      ...fields,
+    };
+    for (const [k, v] of Object.entries(merged)) if (v !== undefined) form.append(k, String(v));
+    if (file !== null) {
+      const { buffer = Buffer.from('%PDF-fake bytes'), filename = 'passport-scan.pdf', mimetype = 'application/pdf' } = file || {};
+      form.append('document', new Blob([buffer], { type: mimetype }), filename);
+    }
+    return fetch(base + '/api/kyc/submit', { method: 'POST', headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: form });
+  };
+
   test('status requires login and starts as not_submitted', async () => {
     assert.equal((await call('/api/kyc/status')).status, 401);
     const r = await call('/api/kyc/status', { tok: userToken });
     assert.deepEqual(await r.json(), { kyc: { status: 'not_submitted' } });
   });
 
+  test("fetching a document before any submission is 404, not a crash", async () => {
+    const r = await call('/api/kyc/document', { tok: userToken });
+    assert.equal(r.status, 404);
+  });
+
   test('an ordinary user cannot reach the admin routes', async () => {
     assert.equal((await call('/api/kyc/admin/pending', { tok: userToken })).status, 403);
+    assert.equal((await call(`/api/kyc/admin/${userId}/document`, { tok: userToken })).status, 403);
     assert.equal((await call(`/api/kyc/admin/${userId}/decision`, { method: 'POST', tok: userToken, body: { decision: 'approved' } })).status, 403);
   });
 
-  test('submitting bad data gives 400 and does not create a record', async () => {
-    const r = await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: { ...goodSubmission, documentType: 'napkin' } });
+  test('submitting bad form data gives 400 and does not create a record', async () => {
+    const r = await submitKyc(userToken, { fields: { documentType: 'napkin' } });
     assert.equal(r.status, 400);
     const status = await (await call('/api/kyc/status', { tok: userToken })).json();
     assert.equal(status.kyc.status, 'not_submitted');
   });
 
-  test('submitting good data moves status to pending and shows up for admin', async () => {
-    const r = await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: goodSubmission });
+  test('submitting with no file attached gives 400', async () => {
+    const r = await submitKyc(userToken, { file: null });
+    assert.equal(r.status, 400);
+  });
+
+  test('submitting a disallowed file type gives 400', async () => {
+    const r = await submitKyc(userToken, { file: { mimetype: 'application/zip', filename: 'id.zip' } });
+    assert.equal(r.status, 400);
+  });
+
+  test('submitting an oversized file gives 400', async () => {
+    const r = await submitKyc(userToken, { file: { buffer: Buffer.alloc(MAX_DOCUMENT_BYTES + 1024) } });
+    assert.equal(r.status, 400);
+  });
+
+  test('submitting good data moves status to pending, shows up for admin, and stores the actual file bytes', async () => {
+    const r = await submitKyc(userToken, { file: { buffer: Buffer.from('the actual document bytes') } });
     assert.equal(r.status, 201);
     assert.equal((await r.json()).kyc.status, 'pending');
 
@@ -140,11 +221,28 @@ describe('KYC API', () => {
     const pending = await (await call('/api/kyc/admin/pending', { tok: adminToken })).json();
     assert.equal(pending.records.length, 1);
     assert.equal(pending.records[0].applicantEmail, 'applicant@example.com');
+
+    // the blob actually went to the blob store under this user's id - not just a filename
+    // recorded in Mongo (the pre-Blob-Storage behavior)
+    assert.equal(blobStore._get(userId).buffer.toString(), 'the actual document bytes');
+  });
+
+  test('the applicant can fetch their own document back', async () => {
+    const r = await call('/api/kyc/document', { tok: userToken });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'application/pdf');
+    assert.equal(await r.text(), 'the actual document bytes');
+  });
+
+  test('an admin can fetch the applicant\'s document', async () => {
+    const r = await call(`/api/kyc/admin/${userId}/document`, { tok: adminToken });
+    assert.equal(r.status, 200);
+    assert.equal(await r.text(), 'the actual document bytes');
   });
 
   // Regression test for a real bug hit in deployment: Cosmos DB for MongoDB rejects a
   // server-side ORDER BY on a field its default indexing policy doesn't cover (it fails
-  // with "The index path corresponding to the specified order-by item is excluded"),
+  // with "The index path corresponding to the specified order-by item is excluded."
   // so listByStatus sorts in JavaScript instead of with Mongo's .sort(). This proves the
   // queue still comes back oldest-submitted-first.
   test('admin queue returns pending submissions oldest first', async () => {
@@ -154,7 +252,7 @@ describe('KYC API', () => {
         body: JSON.stringify({ email, password: 'correct horse battery', name: 'T' }),
       });
       const { token } = await r.json();
-      await call('/api/kyc/submit', { method: 'POST', tok: token, body: goodSubmission });
+      await submitKyc(token);
     };
     const emails = ['queue-1@example.com', 'queue-2@example.com', 'queue-3@example.com'];
     for (const email of emails) await submitAs(email); // sequential, so timestamps are non-decreasing
@@ -176,17 +274,18 @@ describe('KYC API', () => {
     assert.equal(mine.kyc.rejectionReason, 'Blurry photo');
   });
 
-  test('a rejected user can resubmit, moving back to pending', async () => {
-    const r = await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: goodSubmission });
+  test('a rejected user can resubmit, moving back to pending, and the new file overwrites the old one', async () => {
+    const r = await submitKyc(userToken, { file: { buffer: Buffer.from('the resubmitted bytes') } });
     assert.equal(r.status, 201);
     assert.equal((await r.json()).kyc.status, 'pending');
+    assert.equal(blobStore._get(userId).buffer.toString(), 'the resubmitted bytes');
   });
 
   test('approving locks the record: resubmission is blocked, re-deciding fails', async () => {
     const approve = await call(`/api/kyc/admin/${userId}/decision`, { method: 'POST', tok: adminToken, body: { decision: 'approved' } });
     assert.equal(approve.status, 200);
 
-    const blocked = await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: goodSubmission });
+    const blocked = await submitKyc(userToken);
     assert.equal(blocked.status, 409);
 
     const again = await call(`/api/kyc/admin/${userId}/decision`, { method: 'POST', tok: adminToken, body: { decision: 'rejected', reason: 'x' } });

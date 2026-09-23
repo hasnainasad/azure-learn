@@ -9,9 +9,11 @@
   "dependencies": {
     "@azure/identity": "^4.13.3",
     "@azure/keyvault-secrets": "^4.11.2",
+    "@azure/storage-blob": "^12.28.0",
     "bcryptjs": "^3.0.3",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.24.4"
+    "mongoose": "^8.24.4",
+    "multer": "^2.0.1"
   }
 }

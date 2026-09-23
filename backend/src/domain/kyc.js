@@ -1,10 +1,22 @@
 // KYC = "Know Your Customer": the identity checks a regulated advisor must do before
 // giving investment advice. This slice is STATIC: no real document scanning or
 // identity-verification vendor, just the workflow shape (submit -> pending -> approved/rejected).
-// Storing the actual document bytes is deliberately deferred to the Blob Storage slice.
+// As of the Blob Storage slice, the uploaded file's actual bytes ARE stored (see
+// ../blobStorage.js) - what's still static is that nobody inspects the file's contents,
+// only its type and size.
 
 const DOCUMENT_TYPES = ['passport', 'driving_licence', 'national_id', 'utility_bill'];
 const STATUSES = ['not_submitted', 'pending', 'approved', 'rejected'];
+
+// What we'll accept for the identity document itself. Checked against the MIME type the
+// browser/multer reports, not the file's actual bytes (no signature-sniffing) - fine for
+// a learning build's "static" KYC, but worth knowing as a real-world simplification.
+const ALLOWED_DOCUMENT_TYPES = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+};
+const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024; // 5MB - generous for a phone photo or scanned PDF of an ID
 
 class ValidationError extends Error {
   constructor(message) {
@@ -58,7 +70,8 @@ function validateAddress(address) {
   };
 }
 
-// What the browser sends when submitting KYC details.
+// What the browser sends when submitting KYC details (the form fields - the file itself
+// is validated separately by validateDocumentFile, then combined by the route).
 function validateKycSubmission(data) {
   if (!data || typeof data !== 'object') throw new ValidationError('KYC details are required');
   const legalName = str(data.legalName, { field: 'Legal name', max: 150 });
@@ -67,10 +80,25 @@ function validateKycSubmission(data) {
   if (!DOCUMENT_TYPES.includes(data.documentType)) {
     throw new ValidationError('Document type is not valid');
   }
-  // We don't store the file itself yet (that's the Blob Storage slice) - just the name,
-  // as proof the user picked something, and to show it back to them.
   const documentFileName = str(data.documentFileName, { field: 'Document file name', max: 255 });
   return { legalName, dob, address, documentType: data.documentType, documentFileName };
+}
+
+// Validates the UPLOADED FILE itself - shaped like multer's req.file (mimetype, size,
+// originalname, buffer). Kept separate from validateKycSubmission, which validates the
+// surrounding form fields: the route combines both, but each is independently testable
+// without needing multer or an HTTP request at all.
+function validateDocumentFile(file) {
+  if (!file || !file.buffer || !file.buffer.length) {
+    throw new ValidationError('A document file is required');
+  }
+  if (!ALLOWED_DOCUMENT_TYPES[file.mimetype]) {
+    throw new ValidationError('Document must be a JPEG, PNG, or PDF file');
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    throw new ValidationError('Document must be 5MB or smaller');
+  }
+  return { contentType: file.mimetype, size: file.size, originalName: file.originalname || 'document' };
 }
 
 // What an admin sends when reviewing a submission.
@@ -89,8 +117,11 @@ function validateDecision(body) {
 module.exports = {
   DOCUMENT_TYPES,
   STATUSES,
+  ALLOWED_DOCUMENT_TYPES,
+  MAX_DOCUMENT_BYTES,
   ValidationError,
   validateKycSubmission,
+  validateDocumentFile,
   validateDecision,
   ageFromDob,
 };

@@ -10,6 +10,12 @@ const kycSchema = new mongoose.Schema(
     address: mongoose.Schema.Types.Mixed,
     documentType: String,
     documentFileName: String,
+    // As of the Blob Storage slice: where the actual file bytes live. documentBlobName is
+    // just the userId today (one blob per user, overwritten on resubmission) but is stored
+    // explicitly rather than re-derived, in case that naming scheme ever changes.
+    documentBlobName: String,
+    documentContentType: String,
+    documentSize: Number,
     applicantEmail: String, // snapshot at submission time, so the admin list needs no extra lookup
     applicantName: String,
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },

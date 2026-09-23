@@ -26,6 +26,22 @@ export default function AdminKycPanel() {
     }
   }
 
+  // Opens the document in a new tab. The window is opened synchronously (before the
+  // await) so browsers don't treat it as an unrequested popup - its location is filled
+  // in once the authenticated fetch resolves.
+  async function viewDocument(userId) {
+    setError(null)
+    const win = window.open('', '_blank')
+    try {
+      const url = await api.getKycDocumentUrl(userId)
+      if (win) win.location.href = url
+      else setError('Please allow pop-ups to view the document')
+    } catch (err) {
+      if (win) win.close()
+      setError(err.message)
+    }
+  }
+
   return (
     <section className="card">
       <h2>Admin: KYC review queue</h2>
@@ -38,6 +54,7 @@ export default function AdminKycPanel() {
           <p className="small">
             DOB {r.dob} &middot; {r.address.line1}, {r.address.city}, {r.address.postalCode}, {r.address.country} &middot; {r.documentType} ({r.documentFileName})
           </p>
+          <button disabled={busyId === r.userId} onClick={() => viewDocument(r.userId)}>View document</button>{' '}
           <label>
             Rejection reason <small>(only needed if rejecting)</small>
             <input value={reasons[r.userId] || ''} onChange={(e) => setReasons({ ...reasons, [r.userId]: e.target.value })} maxLength={500} />

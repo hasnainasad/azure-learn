@@ -3,6 +3,7 @@
 // and run without any database.
 const express = require('express');
 const os = require('os');
+const multer = require('multer');
 const { authRoutes } = require('./routes/auth');
 const { riskRoutes } = require('./routes/risk');
 const { kycRoutes } = require('./routes/kyc');
@@ -11,7 +12,7 @@ const { recommendationRoutes } = require('./routes/recommendation');
 const { pricesRoutes } = require('./routes/prices');
 const { createPriceFeedService } = require('./services/priceFeedService');
 
-function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, priceFeedService, mountExtra }) {
+function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, priceFeedService, blobStore, mountExtra }) {
   const app = express();
   app.use(express.json({ limit: '100kb' }));
 
@@ -38,7 +39,7 @@ function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, pr
 
   app.use('/api/auth', authRoutes({ userRepo, jwtSecret, jwtExpiresIn }));
   if (profileRepo) app.use('/api/risk', riskRoutes({ profileRepo, jwtSecret }));
-  if (kycRepo) app.use('/api/kyc', kycRoutes({ kycRepo, userRepo, jwtSecret }));
+  if (kycRepo) app.use('/api/kyc', kycRoutes({ kycRepo, userRepo, jwtSecret, blobStore }));
   app.use('/api/funds', fundsRoutes({ jwtSecret })); // reference data - no repo dependency
   if (profileRepo && kycRepo) app.use('/api/recommendation', recommendationRoutes({ profileRepo, kycRepo, jwtSecret }));
   // Falls back to a real (well, mock-real) priceFeedService when the caller doesn't
@@ -57,6 +58,14 @@ function createApp({ userRepo, profileRepo, kycRepo, jwtSecret, jwtExpiresIn, pr
   app.use((err, req, res, next) => {
     if (err.type === 'entity.parse.failed') {
       return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+    // Thrown by multer itself (e.g. LIMIT_FILE_SIZE) before the KYC upload route's own
+    // try/catch ever runs, since it happens in upload.single()'s middleware, not in the
+    // route handler - so it has to be handled here instead of alongside the other
+    // ValidationError cases each route already catches locally.
+    if (err instanceof multer.MulterError) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? 'Document must be 5MB or smaller' : 'Could not process the uploaded file';
+      return res.status(400).json({ error: message });
     }
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });

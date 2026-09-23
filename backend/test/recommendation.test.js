@@ -4,25 +4,29 @@ const { createApp } = require('../src/app');
 const { createMemoryUserRepo } = require('./memoryUserRepo');
 const { createMemoryProfileRepo } = require('./memoryProfileRepo');
 const { createMemoryKycRepo } = require('./memoryKycRepo');
+const { createMemoryBlobStore } = require('./memoryBlobStore');
 
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 const goal = { type: 'retirement', targetAmount: 200000, targetYears: 20, monthlyContribution: 300 };
-const kycSubmission = {
+const kycFields = {
   legalName: 'Asad Hasnain',
   dob: '1990-06-15',
-  address: { line1: '1 High Street', city: 'London', postalCode: 'SW1A 1AA', country: 'United Kingdom' },
+  line1: '1 High Street',
+  city: 'London',
+  postalCode: 'SW1A 1AA',
+  country: 'United Kingdom',
   documentType: 'passport',
-  documentFileName: 'passport.pdf',
 };
 
 describe('funds and recommendation API', () => {
-  let server, base, userRepo, profileRepo, kycRepo, userToken, userId, adminToken;
+  let server, base, userRepo, profileRepo, kycRepo, blobStore, userToken, userId, adminToken;
 
   before(async () => {
     userRepo = createMemoryUserRepo();
     profileRepo = createMemoryProfileRepo();
     kycRepo = createMemoryKycRepo();
-    const app = createApp({ userRepo, profileRepo, kycRepo, jwtSecret: SECRET });
+    blobStore = createMemoryBlobStore();
+    const app = createApp({ userRepo, profileRepo, kycRepo, jwtSecret: SECRET, blobStore });
     await new Promise((resolve) => { server = app.listen(0, resolve); });
     base = `http://127.0.0.1:${server.address().port}`;
 
@@ -52,6 +56,17 @@ describe('funds and recommendation API', () => {
       headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
+
+  // /api/kyc/submit takes multipart/form-data (a real file, as of the Blob Storage
+  // slice), not JSON - see test/kyc.test.js for the same pattern in more detail. This
+  // suite only cares that a submission succeeds and moves status forward, not about the
+  // file-validation edge cases kyc.test.js already covers.
+  const submitKyc = (tok) => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(kycFields)) form.append(k, v);
+    form.append('document', new Blob([Buffer.from('%PDF-fake')], { type: 'application/pdf' }), 'passport.pdf');
+    return fetch(base + '/api/kyc/submit', { method: 'POST', headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: form });
+  };
 
   test('catalog requires login but no risk profile or KYC', async () => {
     assert.equal((await call('/api/funds/catalog')).status, 401);
@@ -85,7 +100,8 @@ describe('funds and recommendation API', () => {
   });
 
   test('still blocked while KYC is pending review', async () => {
-    await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: kycSubmission });
+    const submitted = await submitKyc(userToken);
+    assert.equal(submitted.status, 201);
     const r = await call('/api/recommendation', { tok: userToken });
     assert.equal(r.status, 403);
     assert.equal((await r.json()).kycStatus, 'pending');
@@ -99,7 +115,7 @@ describe('funds and recommendation API', () => {
   });
 
   test('unblocked once KYC is approved: returns a growth-band recommendation summing to 100', async () => {
-    await call('/api/kyc/submit', { method: 'POST', tok: userToken, body: kycSubmission });
+    await submitKyc(userToken);
     await call(`/api/kyc/admin/${userId}/decision`, { method: 'POST', tok: adminToken, body: { decision: 'approved' } });
 
     const r = await call('/api/recommendation', { tok: userToken });
